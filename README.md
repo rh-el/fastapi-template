@@ -1,36 +1,5 @@
 # FastAPI + PostgreSQL Backend Template
 
-A minimal, production-ready backend template built with **FastAPI**, **PostgreSQL**, **SQLModel**, and **Alembic**.
-
-## Architecture
-
-```
-server/app/
-├── main.py              # FastAPI application entry point
-├── db.py                # Database engine and session management
-├── core/
-│   ├── config.py        # Application settings (env-based)
-│   ├── dependencies.py  # Dependency injection (auth, services)
-│   ├── exceptions.py    # Custom exception classes
-│   ├── exception_handlers.py  # Global exception handlers
-│   └── security.py      # OAuth2 scheme configuration
-├── models/
-│   ├── __init__.py      # SQLModel table definitions (User, Vote)
-│   ├── user.py          # User Pydantic schemas
-│   ├── vote.py          # Vote Pydantic schemas
-│   └── token.py         # JWT token schemas
-├── crud/
-│   ├── user_crud.py     # User database operations
-│   └── vote_crud.py     # Vote database operations
-├── services/
-│   ├── user_service.py  # User business logic + auth
-│   └── vote_service.py  # Vote business logic
-├── routes/
-│   ├── user.py          # User API endpoints
-│   └── vote.py          # Vote API endpoints
-└── migrations/          # Alembic migration scripts
-```
-
 ## Stack
 
 - **FastAPI** — async web framework
@@ -75,29 +44,6 @@ alembic upgrade head
 # Start the server
 uvicorn app.main:app --reload
 ```
-
-## API Endpoints
-
-### Users (`/api/v1/user`)
-| Method | Endpoint   | Description          | Auth |
-|--------|-----------|----------------------|------|
-| POST   | /signup   | Register new user    | No   |
-| POST   | /token    | Login (get JWT)      | No   |
-| GET    | /         | List all users       | No   |
-| GET    | /me       | Get current user     | Yes  |
-| PUT    | /         | Update current user  | Yes  |
-| DELETE | /delete   | Delete current user  | Yes  |
-| POST   | /logout   | Clear auth cookie    | No   |
-
-### Votes (`/api/v1/vote`)
-| Method | Endpoint    | Description           | Auth |
-|--------|------------|-----------------------|------|
-| GET    | /          | List all votes        | No   |
-| GET    | /user/me   | List my votes         | Yes  |
-| GET    | /{vote_id} | Get vote by ID        | No   |
-| POST   | /          | Create a vote         | Yes  |
-| PUT    | /{vote_id} | Update a vote         | Yes  |
-| DELETE | /{vote_id} | Delete a vote         | Yes  |
 
 ## Database Migrations
 
