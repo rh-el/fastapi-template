@@ -1,24 +1,18 @@
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 import uuid
 from sqlmodel import Field, SQLModel
 
+class Role(str, Enum):
+    villageois = "villageois"
+    loups_garous = "loups_garous"
 
 class VoteBase(SQLModel):
-    title: str
-    description: Optional[str] = None
-
+    role: Role
 
 class VoteCreate(VoteBase):
-    pass  # user_id is injected from auth
-
-
-class VoteUpdate(SQLModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-
+    pass 
 
 class VoteResponse(VoteBase):
-    id: uuid.UUID
-    user_id: uuid.UUID
     created_at: Optional[datetime] = None

@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Environment files
+.env
+.env.*
+
+# Docker
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Documentation
+*.md
+README*
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Data directories
+.data/
+
