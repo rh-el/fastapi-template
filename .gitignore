@@ -1,0 +1,57 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker data
+.data/
+
+# Environment variables
+*.env
+.env
+.env.*
+!env.examples/
+server/.env
+
+# Docker volumes and generated files
+postgres_dev_data/
+postgres_prod_data/
+postgres_test_data/
+
+# Node
+client/node_modules/
+client/dist/
+
+# Python
+server/.venv/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+
+# Build artifacts
+*.pyc
+.eslintcache
