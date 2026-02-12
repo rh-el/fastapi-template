@@ -6,7 +6,7 @@ from alembic import context
 import os
 from dotenv import load_dotenv
 from sqlmodel import SQLModel
-from app.models import User, vote
+from app.models import User, Vote, Campaign, CTVSession, Interaction
 
 load_dotenv()
 

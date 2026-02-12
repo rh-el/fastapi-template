@@ -59,3 +59,12 @@ docker-compose -f docker-compose.dev.yml exec backend alembic upgrade head
 # Rollback one step
 docker-compose -f docker-compose.dev.yml exec backend alembic downgrade -1
 ```
+
+## CTV Interactive Advertising
+
+This project includes a real-time interactive advertising system that connects CTVs (Connected TVs) with smartphones through WebSockets and REST APIs.
+
+**How it works:** An ad creative (HTML/JS) running on a CTV webview registers a session when the viewer presses a remote button. The viewer's phone pairs via a short code, then phone interactions are relayed to the CTV in real time.
+
+- Full integration guide: [server/docs/CTV_INTEGRATION.md](server/docs/CTV_INTEGRATION.md)
+- API docs (Swagger): `http://localhost:8000/docs` (when running)

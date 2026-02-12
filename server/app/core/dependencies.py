@@ -10,6 +10,8 @@ from app.models.token import TokenData
 from app.models.user import UserResponseWithId
 from app.services.user_service import UserService
 from app.services.vote_service import VoteService
+from app.services.campaign_service import CampaignService
+from app.services.session_service import SessionService
 from app.core.config import settings
 from app.core.security import oauth2_scheme
 
@@ -22,6 +24,14 @@ def get_user_service(session: Session = Depends(get_session)) -> UserService:
 
 def get_vote_service(session: Session = Depends(get_session)) -> VoteService:
     return VoteService(session)
+
+
+def get_campaign_service(session: Session = Depends(get_session)) -> CampaignService:
+    return CampaignService(session)
+
+
+def get_session_service(session: Session = Depends(get_session)) -> SessionService:
+    return SessionService(session)
 
 
 def get_token(request: Request, header_token: Optional[str] = Depends(oauth2_scheme)) -> str:

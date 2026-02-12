@@ -9,7 +9,7 @@ from app.core.exception_handlers import (
     http_exception_handler,
     unhandled_exception_handler,
 )
-from app.routes import user, vote
+from app.routes import user, vote, campaign, session, ws
 from app.db import create_db_and_tables
 
 import uvicorn
@@ -45,6 +45,9 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 # Register routers
 app.include_router(user.router, prefix=settings.API_V1_STR)
 app.include_router(vote.router, prefix=settings.API_V1_STR)
+app.include_router(campaign.router, prefix=settings.API_V1_STR)
+app.include_router(session.router, prefix=settings.API_V1_STR)
+app.include_router(ws.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

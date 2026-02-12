@@ -75,3 +75,55 @@ class VoteAccessDeniedException(AppException):
             detail=f"You don't have access to vote {vote_id}",
             status_code=status.HTTP_403_FORBIDDEN,
         )
+
+
+# ─── Campaign errors ─────────────────────────────────────────────────────────
+
+class CampaignNotFoundException(AppException):
+    def __init__(self, campaign_id: uuid.UUID):
+        super().__init__(
+            detail=f"Campaign with id {campaign_id} not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+
+# ─── Session errors ──────────────────────────────────────────────────────────
+
+class SessionNotFoundException(AppException):
+    def __init__(self, session_id: uuid.UUID):
+        super().__init__(
+            detail=f"Session with id {session_id} not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+
+class SessionExpiredException(AppException):
+    def __init__(self, session_id: uuid.UUID):
+        super().__init__(
+            detail=f"Session {session_id} has expired",
+            status_code=status.HTTP_410_GONE,
+        )
+
+
+class SessionNotPairedException(AppException):
+    def __init__(self, session_id: uuid.UUID):
+        super().__init__(
+            detail=f"Session {session_id} is not paired yet",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+
+class InvalidPairingCodeException(AppException):
+    def __init__(self):
+        super().__init__(
+            detail="Invalid pairing code for this campaign",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class SessionAlreadyPairedException(AppException):
+    def __init__(self, session_id: uuid.UUID):
+        super().__init__(
+            detail=f"Session {session_id} is already paired",
+            status_code=status.HTTP_409_CONFLICT,
+        )
