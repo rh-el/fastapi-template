@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_PUBLISHABLE_KEY: str = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
 
-    BACKEND_CORS_ORIGINS: list = ["https://statics.dmcdn.net", "https://localhost:8080"]
+    BACKEND_CORS_ORIGINS: list = ["https://statics.dmcdn.net", "https://localhost:8080", "https://cebed.stg.dm.gg/"]
 
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
