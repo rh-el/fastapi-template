@@ -9,13 +9,16 @@ from app.models.ctv_session import SessionStatus
 
 def create_ctv_session(
     campaign_id: uuid.UUID,
-    pairing_code: str,
+    claim_token_hash: str,
+    claim_token_expires_at: datetime,
     expires_at: datetime,
     session: Session,
 ) -> CTVSession:
     ctv_session = CTVSession(
         campaign_id=campaign_id,
-        pairing_code=pairing_code,
+        pairing_code=None,
+        claim_token_hash=claim_token_hash,
+        claim_token_expires_at=claim_token_expires_at,
         status=SessionStatus.waiting_for_pair,
         expires_at=expires_at,
     )
@@ -28,32 +31,11 @@ def create_ctv_session(
 def get_ctv_session_by_id(session_id: uuid.UUID, db: Session) -> Optional[CTVSession]:
     return db.exec(select(CTVSession).where(CTVSession.id == session_id)).first()
 
-
-def get_active_session_by_pairing_code(
-    campaign_id: uuid.UUID,
-    pairing_code: str,
+def get_session_by_claim_token_hash(
+    claim_token_hash: str,
     db: Session,
 ) -> Optional[CTVSession]:
-    return db.exec(
-        select(CTVSession).where(
-            CTVSession.campaign_id == campaign_id,
-            CTVSession.pairing_code == pairing_code,
-            CTVSession.status == SessionStatus.waiting_for_pair,
-        )
-    ).first()
-
-
-def get_active_pairing_codes_for_campaign(
-    campaign_id: uuid.UUID,
-    db: Session,
-) -> list[str]:
-    results = db.exec(
-        select(CTVSession.pairing_code).where(
-            CTVSession.campaign_id == campaign_id,
-            CTVSession.status.in_([SessionStatus.waiting_for_pair, SessionStatus.paired]),  # type: ignore[union-attr]
-        )
-    ).all()
-    return list(results)
+    return db.exec(select(CTVSession).where(CTVSession.claim_token_hash == claim_token_hash)).first()
 
 
 def update_session_status(

@@ -2,6 +2,10 @@
 
 FastAPI backend application. See the root [README.md](../README.md) for full documentation.
 
+## CTV ↔ Smartphone connection
+
+See `docs/CTV_INTEGRATION.md`.
+
 ## Database configuration (Supabase)
 
 1. Copy `.env.example` to `.env`.

@@ -127,3 +127,35 @@ class SessionAlreadyPairedException(AppException):
             detail=f"Session {session_id} is already paired",
             status_code=status.HTTP_409_CONFLICT,
         )
+
+
+class PairingDisabledException(AppException):
+    def __init__(self):
+        super().__init__(
+            detail="Pairing code flow is disabled. Use claim token flow instead.",
+            status_code=status.HTTP_410_GONE,
+        )
+
+
+class InvalidClaimTokenException(AppException):
+    def __init__(self):
+        super().__init__(
+            detail="Invalid claim token",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class ClaimTokenExpiredException(AppException):
+    def __init__(self):
+        super().__init__(
+            detail="Claim token has expired",
+            status_code=status.HTTP_410_GONE,
+        )
+
+
+class InteractionTokenInvalidException(AppException):
+    def __init__(self):
+        super().__init__(
+            detail="Interaction token is missing, invalid, or expired",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )

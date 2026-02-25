@@ -1,5 +1,5 @@
 {
-  "name": "Klaws Backend (Python/FastAPI)",
+  "name": "FastAPI Server for campaigns (Python/FastAPI)",
   "dockerComposeFile": "../docker-compose.dev.yml",
   "service": "backend",
   "workspaceFolder": "/app",

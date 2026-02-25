@@ -1,119 +1,169 @@
-import random
-import string
 from datetime import datetime, timedelta
+import hashlib
+import hmac
+import secrets
 import uuid
 
+import jwt
 from sqlmodel import Session
+from app.core.config import settings
 from app.core.exceptions import (
     CampaignNotFoundException,
-    InvalidPairingCodeException,
+    ClaimTokenExpiredException,
+    InteractionTokenInvalidException,
+    InvalidClaimTokenException,
+    PairingDisabledException,
     SessionAlreadyPairedException,
     SessionExpiredException,
     SessionNotFoundException,
     SessionNotPairedException,
 )
-from app.core.ws_manager import ws_manager
 from app.crud.campaign_crud import get_campaign_by_id
 from app.crud.session_crud import (
     create_ctv_session,
     create_interaction,
-    get_active_session_by_pairing_code,
-    get_active_pairing_codes_for_campaign,
     get_ctv_session_by_id,
+    get_session_by_claim_token_hash,
     update_session_status,
 )
+from app.models import CTVSession
 from app.models.ctv_session import (
-    CTVSessionPairResponse,
-    CTVSessionResponse,
+    CTVSessionClaimResponse,
+    CTVSessionRegisterResponse,
+    CTVSessionStatusResponse,
     SessionStatus,
 )
 from app.models.interaction import InteractionCreate, InteractionResponse
 
-PAIRING_CODE_LENGTH = 4
-SESSION_EXPIRY_UNPAIRED_MINUTES = 5
-SESSION_EXPIRY_PAIRED_MINUTES = 30
+SESSION_EXPIRY_SECONDS = 120
+INTERACTION_TOKEN_GRACE_SECONDS = 2
 
 
 class SessionService:
     def __init__(self, session: Session):
         self.session = session
 
-    def _generate_pairing_code(self, campaign_id: uuid.UUID) -> str:
-        """Generate a unique 4-char alphanumeric pairing code for this campaign."""
-        existing = get_active_pairing_codes_for_campaign(campaign_id, self.session)
-        existing_upper = {code.upper() for code in existing}
+    def _hash_claim_token(self, claim_token: str) -> str:
+        if not settings.JWT_SECRET_KEY:
+            raise RuntimeError("JWT_SECRET_KEY is not configured")
+        digest = hmac.new(
+            settings.JWT_SECRET_KEY.encode("utf-8"),
+            claim_token.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        return digest
 
-        chars = string.ascii_uppercase + string.digits
-        for _ in range(100):  # max attempts
-            code = "".join(random.choices(chars, k=PAIRING_CODE_LENGTH))
-            if code not in existing_upper:
-                return code
-        raise RuntimeError("Could not generate unique pairing code after 100 attempts")
+    def _create_interaction_token(self, session_id: uuid.UUID, expires_at: datetime) -> str:
+        if not settings.JWT_SECRET_KEY:
+            raise RuntimeError("JWT_SECRET_KEY is not configured")
+        now = datetime.now()
+        payload = {
+            "typ": "ctv_session_interaction",
+            "sid": str(session_id),
+            "iat": now,
+            "exp": expires_at,
+        }
+        return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
-    def _check_session_expiry(self, ctv_session) -> None:
-        """Raise SessionExpiredException if the session has expired, updating status if needed."""
+    def _verify_interaction_token(self, token: str, session_id: uuid.UUID) -> None:
+        try:
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                options={"require": ["exp", "iat"]},
+            )
+        except jwt.InvalidTokenError:
+            raise InteractionTokenInvalidException()
+
+        if payload.get("typ") != "ctv_session_interaction":
+            raise InteractionTokenInvalidException()
+        if payload.get("sid") != str(session_id):
+            raise InteractionTokenInvalidException()
+
+    def _check_session_expiry(self, ctv_session: CTVSession) -> None:
         if ctv_session.expires_at and datetime.now() > ctv_session.expires_at:
             if ctv_session.status not in (SessionStatus.expired, SessionStatus.closed):
                 update_session_status(ctv_session, SessionStatus.expired, self.session)
             raise SessionExpiredException(ctv_session.id)
 
-    def register_session(self, campaign_id: uuid.UUID) -> CTVSessionResponse:
-        """Called by CTV ad creative after viewer presses remote button."""
+    def register_session(self, campaign_id: uuid.UUID) -> CTVSessionRegisterResponse:
         campaign = get_campaign_by_id(campaign_id, self.session)
         if not campaign:
             raise CampaignNotFoundException(campaign_id)
 
-        pairing_code = self._generate_pairing_code(campaign_id)
-        expires_at = datetime.now() + timedelta(minutes=SESSION_EXPIRY_UNPAIRED_MINUTES)
+        claim_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now() + timedelta(seconds=SESSION_EXPIRY_SECONDS)
+        claim_token_expires_at = expires_at
 
-        ctv_session = create_ctv_session(campaign_id, pairing_code, expires_at, self.session)
-        return CTVSessionResponse(
+        ctv_session = create_ctv_session(
+            campaign_id=campaign_id,
+            claim_token_hash=self._hash_claim_token(claim_token),
+            claim_token_expires_at=claim_token_expires_at,
+            expires_at=expires_at,
+            session=self.session,
+        )
+
+        qr_url = f"{campaign.qr_base_url}#claim={claim_token}"
+
+        return CTVSessionRegisterResponse(
             id=ctv_session.id,
             campaign_id=ctv_session.campaign_id,
-            pairing_code=ctv_session.pairing_code,
             status=ctv_session.status,
+            claim_token=claim_token,
+            qr_url=qr_url,
             created_at=ctv_session.created_at,
             expires_at=ctv_session.expires_at,
         )
 
-    async def pair_session(self, campaign_id: uuid.UUID, pairing_code: str) -> CTVSessionPairResponse:
-        """Called by smartphone after user enters pairing code."""
-        campaign = get_campaign_by_id(campaign_id, self.session)
-        if not campaign:
-            raise CampaignNotFoundException(campaign_id)
+    async def pair_session(self, *_args, **_kwargs):
+        raise PairingDisabledException()
 
-        ctv_session = get_active_session_by_pairing_code(
-            campaign_id, pairing_code.upper(), self.session
-        )
+    async def claim_session(
+        self,
+        claim_token: str,
+        campaign_id: uuid.UUID | None = None,
+    ) -> CTVSessionClaimResponse:
+        ctv_session = get_session_by_claim_token_hash(self._hash_claim_token(claim_token), self.session)
         if not ctv_session:
-            raise InvalidPairingCodeException()
+            raise InvalidClaimTokenException()
+
+        if campaign_id and ctv_session.campaign_id != campaign_id:
+            raise InvalidClaimTokenException()
+
+        if ctv_session.claim_token_expires_at and datetime.now() > ctv_session.claim_token_expires_at:
+            raise ClaimTokenExpiredException()
 
         self._check_session_expiry(ctv_session)
 
         if ctv_session.status == SessionStatus.paired:
             raise SessionAlreadyPairedException(ctv_session.id)
 
-        # Extend expiry on pairing
-        ctv_session.expires_at = datetime.now() + timedelta(minutes=SESSION_EXPIRY_PAIRED_MINUTES)
+        campaign = get_campaign_by_id(ctv_session.campaign_id, self.session)
+        if not campaign:
+            raise CampaignNotFoundException(ctv_session.campaign_id)
+
         updated = update_session_status(ctv_session, SessionStatus.paired, self.session)
 
-        # Notify CTV via WebSocket that a phone has paired
-        await ws_manager.send_to_session(
-            str(updated.id),
-            {"event": "session_paired", "data": {}},
-        )
+        exp = updated.expires_at or (datetime.now() + timedelta(seconds=SESSION_EXPIRY_SECONDS))
+        exp = exp + timedelta(seconds=INTERACTION_TOKEN_GRACE_SECONDS)
+        interaction_token = self._create_interaction_token(updated.id, exp)
 
-        return CTVSessionPairResponse(
+        return CTVSessionClaimResponse(
             session_id=updated.id,
             interaction_config=campaign.interaction_config or [],
+            interaction_token=interaction_token,
+            expires_at=updated.expires_at,
         )
 
     async def handle_interaction(
         self,
         session_id: uuid.UUID,
         interaction_data: InteractionCreate,
+        interaction_token: str,
     ) -> InteractionResponse:
-        """Called by smartphone when user taps an action button."""
+        self._verify_interaction_token(interaction_token, session_id)
+
         ctv_session = get_ctv_session_by_id(session_id, self.session)
         if not ctv_session:
             raise SessionNotFoundException(session_id)
@@ -130,18 +180,6 @@ class SessionService:
             db=self.session,
         )
 
-        # Push lightweight event to CTV via WebSocket
-        await ws_manager.send_to_session(
-            str(session_id),
-            {
-                "event": "interaction",
-                "data": {
-                    "action_type": interaction_data.action_type,
-                    "payload": interaction_data.payload,
-                },
-            },
-        )
-
         return InteractionResponse(
             id=interaction.id,
             session_id=interaction.session_id,
@@ -150,22 +188,19 @@ class SessionService:
             created_at=interaction.created_at,
         )
 
-    def get_session_status(self, session_id: uuid.UUID) -> CTVSessionResponse:
-        """Get current session status (useful for polling fallback)."""
+    def get_session_status(self, session_id: uuid.UUID) -> CTVSessionStatusResponse:
         ctv_session = get_ctv_session_by_id(session_id, self.session)
         if not ctv_session:
             raise SessionNotFoundException(session_id)
 
-        # Check expiry silently and update status if needed
         if ctv_session.expires_at and datetime.now() > ctv_session.expires_at:
             if ctv_session.status not in (SessionStatus.expired, SessionStatus.closed):
                 update_session_status(ctv_session, SessionStatus.expired, self.session)
                 ctv_session.status = SessionStatus.expired
 
-        return CTVSessionResponse(
+        return CTVSessionStatusResponse(
             id=ctv_session.id,
             campaign_id=ctv_session.campaign_id,
-            pairing_code=ctv_session.pairing_code,
             status=ctv_session.status,
             created_at=ctv_session.created_at,
             expires_at=ctv_session.expires_at,
